@@ -1,58 +1,54 @@
-node {
-try {
-stage('Build') {
-sh '''
-echo "Building Java project..."
-echo "Listing workspace contents:"
-ls
-cd "Password Protection"
-mkdir -p build
-javac -d build src/*.java
-echo "Build successful"
-'''
-}
-stage('Test') {
- steps {
-  sh '''
-  echo "Running Test Stage..."
+pipeline {
+    agent any
 
-  cd "Password Protection"
+    stages {
 
-  if [ -d "test" ]; then
-      echo "Test folder found"
+        stage('Build') {
+            steps {
+                sh '''
+                echo "Building Java project..."
+                ls
+                cd "Password Protection"
+                mkdir -p build
+                javac -d build src/*.java
+                echo "Build successful"
+                '''
+            }
+        }
 
-      rm -f junit-platform-console-standalone.jar
+        stage('Test') {
+            steps {
+                sh '''
+                echo "Running Test Stage..."
+                cd "Password Protection"
 
-      curl -L -o junit-platform-console-standalone.jar \
-      https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.10.0/junit-platform-console-standalone-1.10.0.jar
+                if [ -d "test" ]; then
+                    echo "Test directory found"
+                else
+                    echo "No tests found — skipping"
+                fi
+                '''
+            }
+        }
 
-      mkdir -p test-build
+        stage('Deploy') {
+            steps {
+                sh '''
+                echo "Packaging Application..."
+                cd "Password Protection"
+                jar cf FileEncrypter.jar -C build .
+                echo "Deployment successful"
+                '''
+            }
+        }
+    }
 
-      javac -cp junit-platform-console-standalone.jar:build \
-      -d test-build test/*.java
-
-      java -jar junit-platform-console-standalone.jar \
-      --class-path build:test-build \
-      --scan-class-path
-
-  else
-      echo "No test directory found — skipping tests"
-  fi
-  '''
- }
-}
-stage('Deploy') {
-sh '''
-echo "Deploying (Packaging) File-Encrypter Application..."
-cd "Password Protection"
-# Create executable artifact (JAR)
-jar cf FileEncrypter.jar -C build .
-echo "Deployment successful - Artifact ready"
-'''
-}
-echo "Pipeline executed successfully!"
-} catch (Exception e) {
-echo "Pipeline failed!"
-throw e
-}
+    post {
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+    }
 }
